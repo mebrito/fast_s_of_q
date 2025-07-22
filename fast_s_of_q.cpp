@@ -206,12 +206,15 @@ std::vector<float> calculate_qs(int& num_q, float& q_min, float& box_length) {
  *             [1] path_to_traj - Path to .vtf trajectory file
  *             [2] num_q - Number of q values to calculate
  *             [3] q_min - Minimum q value
- *             [4] q_max - Maximum q value
- *             [5] out_file - Output file for S(q) data (optional, default: "s_of_q.txt")
- *             [6] info_file - System info file (optional, default: "info.txt")
+ *             [4] out_file - Output file for S(q) data (optional, default: "s_of_q.txt")
+ *             [5] info_file - System info file (optional, default: "info.txt")
  *
  * @return 0 on success, 1 on file I/O error
  *
+ * @note q values are generated as multiples of the fundamental wave vector q₀ = 2π/L,
+ *       where L is the box length. The minimum q value is used to determine the starting
+ *       multiple for generating the q values. If q_min is less than 2q₀, it will start
+ *       from the first valid multiple, namely 2q₀.
  * @note Outputs two files:
  *       - S(q) data: Two-column format with q values and corresponding S(q)
  *       - System info: Metadata including particle count, timing, and parameters
@@ -225,14 +228,12 @@ int main(int argc, char *argv[]) {
     // --path_to_traj: Path to the .vtf file
     // --num_q: Number of q values
     // --q_min: Minimum q value
-    // --q_max: Maximum q value
     std::string path_to_traj(argv[1]);
     int num_q = std::stoi(argv[2]);
     float q_min = std::stof(argv[3]);
-    float q_max = std::stof(argv[4]);
-    
-    const std::string out_file = argc >=6 ? argv[5] : "s_of_q.txt";
-    const std::string info_file = argc ==7 ? argv[6] : "info.txt";
+
+    const std::string out_file = argc >= 5 ? argv[4] : "s_of_q.txt";
+    const std::string info_file = argc == 6 ? argv[5] : "info.txt";
 
     std::cout << "Reading data from vtf file: " << path_to_traj << std::endl;
     
@@ -285,8 +286,8 @@ int main(int argc, char *argv[]) {
     system_info_file << "Number of bonds: " << data.N_bonds << "\n";
     system_info_file << "Box length: " << box_length << "\n";
     system_info_file << "Number of q values: " << num_q << "\n";
-    system_info_file << "Minimum q value: " << q_min << "\n";
-    system_info_file << "Maximum q value: " << q_max << "\n";
+    system_info_file << "Minimum q value: " << q_vec[0] << "\n";
+    system_info_file << "Maximum q value: " << q_vec.back() << "\n";
     system_info_file <<  "calculation time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s   OR   " \
 	    <<  std::chrono::duration_cast<std::chrono::minutes>(end - start).count() << " min" << "\n";
     system_info_file.close();

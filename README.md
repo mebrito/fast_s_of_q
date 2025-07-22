@@ -10,6 +10,7 @@ The structure factor S(q) is a fundamental quantity in condensed matter physics 
 
 - **Fast Computation**: Optimized C++ implementation with OpenMP parallelization
 - **VTF File Support**: Reads Visual Trajectory Format (.vtf) files containing particle positions
+- **Physics-Based Q-range**: Wave vectors as multiples of fundamental q₀ = 2π/L for periodic boundary compatibility
 - **Memory Efficient**: Streamlined algorithms optimized for large particle systems
 - **Comprehensive Output**: Generates both S(q) data and system information files
 
@@ -35,27 +36,27 @@ This will create the `fast_s_of_q` executable.
 ### Basic Usage
 
 ```bash
-./fast_s_of_q <vtf_file> <num_q> <q_min> <q_max> [output_file] [info_file]
+./fast_s_of_q <vtf_file> <num_q> <q_min> [output_file] [info_file]
 ```
 
 ### Parameters
 
 - `vtf_file`: Path to the .vtf trajectory file containing particle positions
 - `num_q`: Number of q values to calculate (integer)
-- `q_min`: Minimum q value (float, must be > 0)
-- `q_max`: Maximum q value (float, must be > q_min)
+- `q_min`: Minimum q value threshold - used to determine starting multiple of q₀ = 2π/L
 - `output_file`: (Optional) Output file for S(q) data (default: "s_of_q.txt")
 - `info_file`: (Optional) System information file (default: "info.txt")
 
 ### Example
 
 ```bash
-./fast_s_of_q trajectory.vtf 50 0.1 10.0 results.txt system_info.txt
+./fast_s_of_q trajectory.vtf 50 0.1 results.txt system_info.txt
 ```
 
 This command:
 - Reads particle positions from `trajectory.vtf`
-- Calculates S(q) for 50 logarithmically spaced q values between 0.1 and 10.0
+- Calculates S(q) for 50 q values starting from the first multiple of q₀ ≥ 0.1
+- Q values are generated as q₀ × (n_min, n_min+1, ..., n_min+49) where q₀ = 2π/box_length
 - Outputs results to `results.txt` and system information to `system_info.txt`
 
 ## Input File Format
@@ -86,17 +87,20 @@ timestep <step>
 Two-column format containing:
 ```
 # q S(q)
-0.100000 1.234567
-0.125893 1.198765
+1.256637 1.234567
+1.884956 1.198765
+2.513274 1.156432
 ...
 ```
+*Note: Q values are multiples of q₀ = 2π/box_length*
 
 ### System Information File
 Contains metadata about the calculation:
 - Input file path
 - Number of particles and bonds
 - Box dimensions
-- Q-range parameters
+- Number of q values and actual q-range (min/max)
+- Fundamental wave vector q₀
 - Calculation time
 
 ## Algorithm Details
@@ -111,10 +115,23 @@ Where:
 - rᵢⱼ is the distance between particles i and j
 - The sum runs over all particle pairs
 
+### Q-Vector Generation
+
+The program generates q values as integer multiples of the fundamental wave vector q₀ = 2π/L, where L is the box length:
+
+- **Physical Basis**: This approach ensures compatibility with periodic boundary conditions
+- **Starting Point**: The minimum multiplier n_min is determined from q_min: n_min = max(2, floor(q_min/q₀))
+- **Sequence**: Q values are generated as q[i] = q₀ × (n_min + i) for i = 0, 1, ..., num_q-1
+- **Advantages**: 
+  - Ensures proper sampling of reciprocal space
+  - Avoids artifacts from incompatible q vectors
+  - Provides physically meaningful wave vectors for periodic systems
+
 ### Key Optimizations:
 - **OpenMP Parallelization**: Utilizes multiple CPU cores for faster computation
 - **Memory Optimization**: Efficient memory usage for large systems
 - **Vectorized Operations**: Uses STL algorithms for optimal performance
+- **Physics-Based Q-vectors**: Uses multiples of q₀ = 2π/L for consistency with periodic boundaries
 
 ## Performance
 
@@ -157,7 +174,7 @@ g++ -std=c++23 -O3 -fopenmp -o fast_s_of_q fast_s_of_q.cpp
 ### Core Functions
 - `extractPartPositions()`: Parses VTF files and extracts particle coordinates
 - `calculate_s_of_q()`: Computes structure factor using parallelized Debye formula
-- `calculate_qs()`: Generates logarithmically spaced q values
+- `calculate_qs()`: Generates linearly spaced q values as multiples of q₀ = 2π/L
 
 ### Supported Features
 - Cubic simulation boxes
