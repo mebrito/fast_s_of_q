@@ -1,19 +1,36 @@
 # Compiler and flags
-CXX=g++
-CXXFLAGS=-std=c++23 -O3 -fopenmp
-TARGET=fast_s_of_q
-SOURCES=fast_s_of_q.cpp
+CXX = g++
+CXXSTD = -std=c++23
+WARNFLAGS = -Wall -Wextra
+OPTFLAGS = -O3
+DEBUGFLAGS = -g
+OMPFLAGS = -fopenmp
+CXXFLAGS = $(CXXSTD) $(WARNFLAGS) $(OPTFLAGS) $(OMPFLAGS)
+
+# Directories
+SRCDIR = .
+OBJDIR = obj
+INCDIR = .
+
+# Files
+TARGET = fast_s_of_q
+SOURCES = fast_s_of_q.cpp
+OBJECTS = $(SOURCES:.cpp=.o)
+HEADERS = s_of_q.hpp
 
 # Default target
 all: $(TARGET)
 
 # Build the target
-$(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCES)
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
+%.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	
 # Clean target
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJECTS)
 
 # Rebuild target
 rebuild: clean all
