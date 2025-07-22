@@ -1,19 +1,19 @@
 # Compiler and flags
-CXX = g++
-CXXFLAGS = -std=c++23 -O3 -fopenmp
-TARGET = fast_s_of_q
-SOURCES = fast_s_of_q.cpp
+CXX=g++
+CXXFLAGS=-std=c++23 -O3 -fopenmp
+TARGET=fast_s_of_q
+SOURCES=fast_s_of_q.cpp
 
 # Default target
 all: $(TARGET)
 
 # Build the target
 $(TARGET): $(SOURCES)
-    $(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCES)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCES)
 
 # Clean target
 clean:
-    rm -f $(TARGET)
+	rm -f $(TARGET)
 
 # Rebuild target
 rebuild: clean all
