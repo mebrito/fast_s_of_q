@@ -11,6 +11,7 @@
 #include <sstream>
 #include <cctype>
 #include <chrono>
+#include <ranges>
 
 #include "s_of_q.hpp"
 
@@ -156,23 +157,41 @@ Extraction extractPartPositions(const std::string& vtfFilePath) {
 }
 
 /**
- * @brief Generates logarithmically spaced wave vector magnitudes.
+ * @brief Generates linearly spaced wave vector magnitudes based on the fundamental wave vector.
  *
- * Creates q values logarithmically distributed between q_min and q_max,
- * commonly used in scattering analysis spanning multiple orders of magnitude.
+ * Creates q values that are integer multiples of the fundamental wave vector q₀ = 2π/L,
+ * where L is the box length. This approach ensures that the wave vectors are compatible
+ * with the periodic boundary conditions of the simulation box.
  *
  * @param num_q Number of q values to generate
- * @param q_min Minimum q value (must be > 0)
- * @param q_max Maximum q value (must be > q_min)
- * @return std::vector<float> Logarithmically spaced q values
+ * @param q_min Minimum q value threshold - used to determine the starting multiple of q₀
+ * @param box_length Length of the cubic simulation box
+ * @return std::vector<float> Linearly spaced q values as multiples of q₀
  *
- * @note Uses formula: q[i] = q_min * 10^((log10(q_max/q_min) * i) / (num_q - 1))
+ * @note The function:
+ *       - Calculates q₀ = 2π/box_length
+ *       - Determines n_min = max(2, floor(q_min/q₀)) as the starting multiplier
+ *       - Generates q values: q[i] = q₀ * (n_min + i) for i = 0, 1, ..., num_q-1
+ *       - Uses C++20 ranges with std::views::iota and std::views::transform
+ *
+ * @example For box_length=10, q_min=1.0, num_q=5:
+ *          q₀ ≈ 0.628, n_min=2, generates q ≈ [1.26, 1.88, 2.51, 3.14, 3.77]
  */
-std::vector<float> calculate_qs(int& num_q, float& q_min, float& q_max) {
+std::vector<float> calculate_qs(int& num_q, float& q_min, float& box_length) {
     std::vector<float> q(num_q);
-    for (int i = 0; i < num_q; i++) {
-        q[i] = q_min * pow(10.0, (log10(q_max / q_min) * i) / (num_q - 1));
-    }
+    float q_0 = 2 * M_PI / box_length; // q_0 = 2 * pi / box_length
+    int val = static_cast<int>(std::floor(q_min / q_0));
+    int n_min = val >= 2 ? val : 2; // Ensure at least 2
+    
+    // Using std::views::transform with ranges
+    auto indices = std::views::iota(0, num_q);
+    auto q_values = indices | std::views::transform([q_0, n_min](int i) {
+        return q_0 * (n_min + i);
+    });
+    
+    // Copy the transformed values to the output vector
+    std::ranges::copy(q_values, q.begin());
+    
     return q;
 }
 
@@ -221,11 +240,11 @@ int main(int argc, char *argv[]) {
     Extraction data = extractPartPositions(path_to_traj);
     
     std::cout << "Defining variables..." << std::endl;
-    std::vector<float> q_vec = calculate_qs(num_q, q_min, q_max);
+    float box_length = data.box_l[0];
+    std::vector<float> q_vec = calculate_qs(num_q, q_min, box_length);
     std::vector<float> pos_x;
     std::vector<float> pos_y;
     std::vector<float> pos_z;
-    float box_length = data.box_l[0];
     
     std::cout << "Initialize positions.." << std::endl;
     for (const auto& pos : data.positions) {
